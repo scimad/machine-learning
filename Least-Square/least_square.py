@@ -6,8 +6,8 @@ class FunctionFactory:
         pass
 
     def linear_function(*args):
-        measurements = args[0]
-        x = measurements[0]
+        domain_points = args[0]
+        x = domain_points
         a = args[1][0]
         b = args[1][1]
 
@@ -30,7 +30,7 @@ class DataFactory:
     def create_linear(self, a, b, N=1000, noise_sigma=1):
         x = np.random.uniform(-1.25*b/a, 1.25*b/a, N)
         y = a*x+b + np.random.normal(scale=noise_sigma, size=x.shape)
-        return (x ,y)
+        return x , y
     
     def create_quadratic(self, a, b, c, N=1000, noise_sigma=1):
         x = np.random.uniform(-1.25*b/2*a, 1.25*b/2*a, N)
@@ -40,11 +40,23 @@ class DataFactory:
 
 
 class LeastSquareSolver:
-    def __init__(self,system = 'Linear', function=None, measurements=None):
+    '''
+    Description for class LeastSquareSolver
+
+    attributes:
+    observation_functions:  This is a set of function that computes the expected observation
+                            or predicted observations from the current state x
+
+    measurement:            Set of actual measurements / observation z_i of the state x
+
+    state_vector:           Set of parameters representing the state x
+    '''
+    def __init__(self,system = 'Linear', function=None, domain_points = None, observations=None):
         self.state_vector = None
-        self.measurement = measurements
+        self.domain_points = domain_points
+        self.observations = observations
         self.predicted = None
-        self.function = function
+        self.observation_functions = function
         self.squared_error = 9999999
         
         if system == 'Linear':
@@ -55,11 +67,11 @@ class LeastSquareSolver:
     def initialize_state_randomly(self):
         self.state_vector = np.random.random((len(self.state_vector)))
 
-    def compute_prediction(self):
-        self.predicted = self.function(self.measurement, self.state_vector)
+    def compute_predicted_observation(self):
+        self.predicted = self.observation_functions(self.domain_points, self.state_vector)
 
     def error_fn(self):
-        self.squared_error = np.linalg.norm(self.measurement[1]-self.predicted)
+        self.squared_error = np.linalg.norm(self.observations - self.predicted)
         return self.squared_error
     
     def add_to_visualizer(self,x,y,color='green'):
@@ -70,24 +82,24 @@ class LeastSquareSolver:
         plt.ylabel('y')
         plt.show()
     
-    def improvise_state():
-        - apply SGD
+    def improvise_state(self):
+        pass
 
     def solve(self):
         self.initialize_state_randomly()
         while True:
-            self.compute_prediction()
+            self.compute_predicted_observation()
             self.error_fn()
             self.improvise_state()
-            self.add_to_visualizer(measurements[0], self.predicted, color='red')
-            self.add_to_visualizer(measurements[0], measurements[1], color='blue')
+            self.add_to_visualizer(domain_points, self.predicted, color='red')
+            self.add_to_visualizer(domain_points, observations, color='blue')
             self.visualize()
 
 if __name__ == '__main__':
     df = DataFactory()
     
-    measurements = df.create_linear(1,4,1000,2)
+    domain_points, observations = df.create_linear(1, 4, 1000, noise_sigma=2)
 
-    solver = LeastSquareSolver('Linear', FunctionFactory.linear_function, measurements)
+    solver = LeastSquareSolver('Linear', FunctionFactory.linear_function, domain_points, observations)
 
     solver.solve()
