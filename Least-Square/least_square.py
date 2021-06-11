@@ -114,7 +114,7 @@ class LeastSquareSolver:
 
     def solve(self):
         self.initialize_state_randomly()
-        iteration = 1 
+        iteration = 1
         while True:
             self.compute_predicted_observation()
             self.compute_error()
