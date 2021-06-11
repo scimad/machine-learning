@@ -1,11 +1,19 @@
 import numpy as np
 import matplotlib.pyplot as plt
-
-class FunctionFactory:
+class FunctionTemplate:
     def __init__(self):
         pass
 
-    def linear_function(*args):
+    def func(*args):
+        pass
+
+    def jacobian_of_error_func(self):
+        pass
+class LinearFunction(FunctionTemplate):
+    def __init__(self):
+        super.__init__()
+
+    def func(*args):
         domain_points = args[0]
         x = domain_points
         a = args[1][0]
@@ -70,8 +78,9 @@ class LeastSquareSolver:
     def compute_predicted_observation(self):
         self.predicted = self.observation_functions(self.domain_points, self.state_vector)
 
-    def error_fn(self):
-        self.squared_error = np.linalg.norm(self.observations - self.predicted)
+    def compute_error(self):
+        self.error_matrix = self.observations - self.predicted
+        self.squared_error = np.matmul(self.error_matrix, np.transpose(self.error_matrix))
         return self.squared_error
     
     def add_to_visualizer(self,x,y,color='green'):
@@ -89,7 +98,7 @@ class LeastSquareSolver:
         self.initialize_state_randomly()
         while True:
             self.compute_predicted_observation()
-            self.error_fn()
+            self.compute_error()
             self.improvise_state()
             self.add_to_visualizer(domain_points, self.predicted, color='red')
             self.add_to_visualizer(domain_points, observations, color='blue')
@@ -100,6 +109,6 @@ if __name__ == '__main__':
     
     domain_points, observations = df.create_linear(1, 4, 1000, noise_sigma=2)
 
-    solver = LeastSquareSolver('Linear', FunctionFactory.linear_function, domain_points, observations)
+    solver = LeastSquareSolver('Linear', LinearFunction.func, domain_points, observations)
 
     solver.solve()
