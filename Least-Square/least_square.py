@@ -1,49 +1,69 @@
 import numpy as np
 import matplotlib.pyplot as plt
+
+
+
 class FunctionTemplate:
     def __init__(self):
         pass
 
-    def func(*args):
+    def func(self, *args):
+        '''
+        Should return predicted observations
+        '''
+        pass
+
+    def get_sample_data(param_matrix, N, noise_sigma):
         pass
 
     def jacobian_of_error_func(self):
         pass
+
+
+
 class LinearFunction(FunctionTemplate):
     def __init__(self):
-        super.__init__()
+        super().__init__()
 
-    def func(*args):
-        domain_points = args[0]
+    def func(self, domain_points, state_matrix):
         x = domain_points
-        a = args[1][0]
-        b = args[1][1]
-
+        a, b = state_matrix[0][0], state_matrix[0][1]
         return a*x+b
 
-class DataFactory:
-    def __init__(self):
-        pass
+    def initial_state_matrix(self):
+        return np.random.normal(size=(1,2))
 
-    def create_sample_quadratic_dataset(self):
-        return self.create_quadratic(-2, 3, 1, 1000, 10)
-
-    @staticmethod
-    def show_plot(x,y,xlabel='x', ylabel='y'):
-        plt.scatter(x, y, s=0.5)
-        plt.xlabel(xlabel)
-        plt.ylabel(ylabel)
-        plt.show()
-
-    def create_linear(self, a, b, N=1000, noise_sigma=1):
-        x = np.random.uniform(-1.25*b/a, 1.25*b/a, N)
-        y = a*x+b + np.random.normal(scale=noise_sigma, size=x.shape)
+    def get_sample_data(self, param_matrix = [1, 1], N=1000, noise_sigma=[1]):
+        a, b = param_matrix
+        x = np.random.uniform(-1.25*b/a, 1.25*b/a, (N, 1, 1))
+        y = a*x+b + np.random.normal(scale=noise_sigma[0], size=x.shape)
         return x , y
+
+
+
+class ProjectionFunction(FunctionTemplate):
+    def __init__(self):
+        super().__init__()
+
+    def func(self, domain_points, state_matrix):
+        return [np.matmul(state_matrix, np.transpose(x)) for x in domain_points]
     
-    def create_quadratic(self, a, b, c, N=1000, noise_sigma=1):
-        x = np.random.uniform(-1.25*b/2*a, 1.25*b/2*a, N)
-        y = a*x*x+b*x+c + np.random.normal(scale=noise_sigma, size=x.shape)
-        return (x, y)
+    def initial_state_matrix(self):
+        return np.random.normal(size=(2,3))
+
+    def get_sample_data(self, param_matrix=np.ones((2,3)), N=1000, noise_sigma=[1,2]):
+        '''
+        Function to simulate data from this:
+
+        x1          a   b   c       x1
+            =                       x2
+        x2          d   e   f       x3
+
+        '''
+        X = np.random.uniform(-100, 100, (N, 1, 3))
+        noise_data = np.concatenate((np.random.normal(scale=noise_sigma[0], size=(N, 1, 1)), np.random.normal(scale=noise_sigma[1], size=(N, 1, 1))), axis=1)
+        Y = [np.matmul(param_matrix, np.transpose(x)) for x in X] + noise_data
+        return X, Y
 
 
 
@@ -52,36 +72,33 @@ class LeastSquareSolver:
     Description for class LeastSquareSolver
 
     attributes:
-    observation_functions:  This is a set of function that computes the expected observation
-                            or predicted observations from the current state x
+    observation_func    :  This is a set of object that represents the observation function and what not!
 
     measurement:            Set of actual measurements / observation z_i of the state x
 
-    state_vector:           Set of parameters representing the state x
+    state_matrix:           Set of parameters representing the state x
     '''
-    def __init__(self,system = 'Linear', function=None, domain_points = None, observations=None):
-        self.state_vector = None
+    def __init__(self, observation_func=None, domain_points = None, observations=None):
+        self.state_matrix = None
         self.domain_points = domain_points
         self.observations = observations
         self.predicted = None
-        self.observation_functions = function
-        self.squared_error = 9999999
-        
-        if system == 'Linear':
-            self.state_vector = [0]*2
-        elif system == 'Quadratic':
-            self.state_vector = [0]*3
+        self.observation_func = observation_func
+        self.squared_error = [999999999]*len(observations)
+        self.sum_of_squared_error = [999999999]
+        # self.state_matrix = observation_func.initial_state_matrix()
 
     def initialize_state_randomly(self):
-        self.state_vector = np.random.random((len(self.state_vector)))
+        self.state_matrix = observation_func.initial_state_matrix()
 
     def compute_predicted_observation(self):
-        self.predicted = self.observation_functions(self.domain_points, self.state_vector)
+        self.predicted = self.observation_func.func(self.domain_points, self.state_matrix)
 
     def compute_error(self):
-        self.error_matrix = self.observations - self.predicted
-        self.squared_error = np.matmul(self.error_matrix, np.transpose(self.error_matrix))
-        return self.squared_error
+        self.error_matrix = np.transpose(self.observations - self.predicted, axes=(0,2,1))
+        self.squared_error = list(map(lambda err: np.dot(err[0], np.transpose(err[0])), self.error_matrix))
+        self.sum_of_squared_error = np.sum(self.squared_error)
+        return self.sum_of_squared_error
     
     def add_to_visualizer(self,x,y,color='green'):
         plt.scatter(x, y, s=0.5, color=color)
@@ -92,23 +109,31 @@ class LeastSquareSolver:
         plt.show()
     
     def improvise_state(self):
+        # SGD or Gauss Netwon or Levenberg–Marquardt
         pass
 
     def solve(self):
         self.initialize_state_randomly()
+        iteration = 1 
         while True:
             self.compute_predicted_observation()
             self.compute_error()
             self.improvise_state()
-            self.add_to_visualizer(domain_points, self.predicted, color='red')
-            self.add_to_visualizer(domain_points, observations, color='blue')
-            self.visualize()
+            print (f"Sum of squared error in iteration {iteration} is {self.sum_of_squared_error}")
+            input()
+            # self.add_to_visualizer(domain_points, self.predicted, color='red')
+            # self.add_to_visualizer(domain_points, observations, color='blue')
+            # self.visualize()
+
+
 
 if __name__ == '__main__':
-    df = DataFactory()
-    
-    domain_points, observations = df.create_linear(1, 4, 1000, noise_sigma=2)
+    observation_func = LinearFunction()
+    domain_points, observations = observation_func.get_sample_data([1,4], 1000, noise_sigma=[2])
+    solver = LeastSquareSolver(observation_func, domain_points, observations)
 
-    solver = LeastSquareSolver('Linear', LinearFunction.func, domain_points, observations)
+    # observation_func = ProjectionFunction()
+    # domain_points, observations = observation_func.get_sample_data(N=1000, noise_sigma=[2,3])
+    # solver = LeastSquareSolver(observation_func, domain_points, observations)
 
     solver.solve()
