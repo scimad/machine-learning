@@ -1,4 +1,4 @@
-from models import LinearFunction
+from models import ExpFunction, LinearFunction, SineFunction, QuadraticFunction
 from optimizer import LeastSquareSolver
 
 if __name__ == '__main__':

@@ -24,7 +24,7 @@ class LeastSquareSolver:
         self.iterations_before_visualization = 1
 
     def initialize_state_randomly(self):
-        self.state_matrix = observation_func.initialize_state_matrix()
+        self.state_matrix = self.observation_func.initialize_state_matrix()
 
     def compute_predicted_observation(self):
         self.predicted = self.observation_func.func(self.domain_points, self.state_matrix)
@@ -70,6 +70,6 @@ class LeastSquareSolver:
             self.improvise_state()
             if iterations%self.iterations_before_visualization == 0:
                 print (f'Iteration = {iterations}, state_matrix = {self.state_matrix}, L2 error= {self.sum_of_squared_error}')
-                self.add_to_visualizer(domain_points, observations, color='green')
-                self.add_to_visualizer(domain_points, self.predicted, color='red')
+                self.add_to_visualizer(self.domain_points, self.observations, color='green')
+                self.add_to_visualizer(self.domain_points, self.predicted, color='red')
                 self.visualize()
