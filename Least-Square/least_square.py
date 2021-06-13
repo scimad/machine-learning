@@ -11,7 +11,7 @@ class FunctionTemplate:
         '''
         pass
 
-    def get_sample_data(param_matrix, N, noise_sigma):
+    def get_sample_data(state_matrix, N, noise_sigma):
         pass
 
     def jacobian_of_error_func(self):
@@ -31,23 +31,56 @@ class LinearFunction(FunctionTemplate):
     def initial_state_matrix(self):
         return np.random.normal(size=(1,2))
 
-    def get_sample_data(self, param_matrix = [1, 1], N=1000, noise_sigma=[1]):
-        a, b = param_matrix
+    def get_sample_data(self, state_matrix = [1, 1], N=1000, noise_sigma=[1]):
+        a, b = state_matrix
         x = np.random.uniform(-1.25*b/a, 1.25*b/a, (N, 1, 1))
         y = a*x+b + np.random.normal(scale=noise_sigma[0], size=x.shape)
         return x , y
 
     def jacobian_of_error_func(self, domain_points, observations, state_matrix):
         a, b = state_matrix[0][0], state_matrix[0][1]
-
         x_i = np.array((domain_points))
-        xi_2 = x_i * x_i #xi_2 = np.array(list(map(lambda x: np.dot(np.transpose(x), x), x_i)))
-
         j_11 = -x_i
         j_12 = -np.ones(j_11.shape)
 
         j_i = np.concatenate((j_11, j_12), axis=2)
         return j_i
+
+class QuadraticFunction(FunctionTemplate):
+    def __init__(self):
+        super().__init__()
+
+    def func(self, domain_points, state_matrix):
+        x = domain_points
+        a, b, c = state_matrix[0][0], state_matrix[0][1], state_matrix[0][2]
+        return a*(x*x) + b*x + c
+
+    def initial_state_matrix(self):
+        return np.random.normal(size=(1,3))
+
+    def get_sample_data(self, state_matrix = [1, 1, 1], N=1000, noise_sigma=[1]):
+        a, b, c = state_matrix
+        state_matrix = np.array(state_matrix)
+        x = np.random.uniform(-1.25*b/a, 1.25*b/a, (N, 1, 1))
+        y = a*x*x + b*x + c + np.random.normal(scale=noise_sigma[0], size=x.shape)
+        # y = self.func(x, state_matrix)+ np.random.normal(scale=noise_sigma[0], size=x.shape)
+
+        return x , y
+
+    def jacobian_of_error_func(self, domain_points, observations, state_matrix):
+        a, b,c = state_matrix[0][0], state_matrix[0][1], state_matrix[0][1]
+
+        x_i = np.array((domain_points))
+
+        j_11 = -x_i*x_i
+        j_12 = -x_i
+        # Fix this later
+        j_13 = -np.ones(j_11.shape)
+
+        j_i = np.concatenate((j_11, j_12, j_13), axis=2)
+        return j_i
+
+
 
 class ProjectionFunction(FunctionTemplate):
     def __init__(self):
@@ -55,11 +88,11 @@ class ProjectionFunction(FunctionTemplate):
 
     def func(self, domain_points, state_matrix):
         return [np.matmul(state_matrix, np.transpose(x)) for x in domain_points]
-    
+
     def initial_state_matrix(self):
         return np.random.normal(size=(2,3))
 
-    def get_sample_data(self, param_matrix=np.ones((2,3)), N=1000, noise_sigma=[1,2]):
+    def get_sample_data(self, state_matrix=np.ones((2,3)), N=1000, noise_sigma=[1,2]):
         '''
         Function to simulate data from this:
 
@@ -70,7 +103,7 @@ class ProjectionFunction(FunctionTemplate):
         '''
         X = np.random.uniform(-100, 100, (N, 1, 3))
         noise_data = np.concatenate((np.random.normal(scale=noise_sigma[0], size=(N, 1, 1)), np.random.normal(scale=noise_sigma[1], size=(N, 1, 1))), axis=1)
-        Y = [np.matmul(param_matrix, np.transpose(x)) for x in X] + noise_data
+        Y = [np.matmul(state_matrix, np.transpose(x)) for x in X] + noise_data
         return X, Y
 
 
@@ -124,9 +157,10 @@ class LeastSquareSolver:
         h_i = np.array(list(map(lambda j: np.dot(np.transpose(j), j), j_i)))
 
         c = np.sum(c_i,axis=0)
-        b = np.transpose(np.sum(b_i, axis=0))
+        b = np.transpose(np.sum(b_i, axis=(0,1)))
+        print (b.shape)
         H = np.sum(h_i, axis=0)
-        learning_rate = 0.8
+        learning_rate = 1 # 0.8
         change = - learning_rate* np.transpose(np.matmul(np.linalg.inv(H), b))
 
         self.state_matrix +=  change
@@ -147,12 +181,16 @@ class LeastSquareSolver:
 
 
 if __name__ == '__main__':
-    observation_func = LinearFunction()
-    domain_points, observations = observation_func.get_sample_data([1,-4], 1000, noise_sigma=[2])
-    solver = LeastSquareSolver(observation_func, domain_points, observations)
+    # observation_func = LinearFunction()
+    # domain_points, observations = observation_func.get_sample_data([1,-4], 1000, noise_sigma=[2])
+    # solver = LeastSquareSolver(observation_func, domain_points, observations)
 
     # observation_func = ProjectionFunction()
     # domain_points, observations = observation_func.get_sample_data(N=1000, noise_sigma=[2,3])
     # solver = LeastSquareSolver(observation_func, domain_points, observations)
+
+    observation_func = QuadraticFunction()
+    domain_points, observations = observation_func.get_sample_data([-2, 5, 2], N=1000, noise_sigma=[1.5])
+    solver = LeastSquareSolver(observation_func, domain_points, observations)
 
     solver.solve()
