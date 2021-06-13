@@ -1,8 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-
-
 class FunctionTemplate:
     def __init__(self):
         pass
@@ -39,7 +37,17 @@ class LinearFunction(FunctionTemplate):
         y = a*x+b + np.random.normal(scale=noise_sigma[0], size=x.shape)
         return x , y
 
+    def jacobian_of_error_func(self, domain_points, observations, state_matrix):
+        a, b = state_matrix[0][0], state_matrix[0][1]
 
+        x_i = np.array((domain_points))
+        xi_2 = x_i * x_i #xi_2 = np.array(list(map(lambda x: np.dot(np.transpose(x), x), x_i)))
+
+        j_11 = -x_i
+        j_12 = -np.ones(j_11.shape)
+
+        j_i = np.concatenate((j_11, j_12), axis=2)
+        return j_i
 
 class ProjectionFunction(FunctionTemplate):
     def __init__(self):
@@ -74,7 +82,7 @@ class LeastSquareSolver:
     attributes:
     observation_func    :  This is a set of object that represents the observation function and what not!
 
-    measurement:            Set of actual measurements / observation z_i of the state x
+    observations:            Set of actual observations / observation z_i of the state x
 
     state_matrix:           Set of parameters representing the state x
     '''
@@ -86,7 +94,6 @@ class LeastSquareSolver:
         self.observation_func = observation_func
         self.squared_error = [999999999]*len(observations)
         self.sum_of_squared_error = [999999999]
-        # self.state_matrix = observation_func.initial_state_matrix()
 
     def initialize_state_randomly(self):
         self.state_matrix = observation_func.initial_state_matrix()
@@ -95,8 +102,8 @@ class LeastSquareSolver:
         self.predicted = self.observation_func.func(self.domain_points, self.state_matrix)
 
     def compute_error(self):
-        self.error_matrix = np.transpose(self.observations - self.predicted, axes=(0,2,1))
-        self.squared_error = list(map(lambda err: np.dot(err[0], np.transpose(err[0])), self.error_matrix))
+        self.e_i = self.observations - self.predicted
+        self.squared_error = self.e_i * self.e_i # self.squared_error = np.array(list(map(lambda err: np.dot(np.transpose(err), err), self.e_i)))
         self.sum_of_squared_error = np.sum(self.squared_error)
         return self.sum_of_squared_error
     
@@ -110,26 +117,38 @@ class LeastSquareSolver:
     
     def improvise_state(self):
         # SGD or Gauss Netwon or Levenberg–Marquardt
-        pass
+        print ("The state_matrix is ", np.round(self.state_matrix,decimals=2))
+        c_i = self.squared_error
+        j_i = self.observation_func.jacobian_of_error_func(self.domain_points, self.observations, self.state_matrix)
+        b_i = np.matmul(self.e_i, j_i)
+        h_i = np.array(list(map(lambda j: np.dot(np.transpose(j), j), j_i)))
+
+        c = np.sum(c_i,axis=0)
+        b = np.transpose(np.sum(b_i, axis=0))
+        H = np.sum(h_i, axis=0)
+        learning_rate = 0.8
+        change = - learning_rate* np.transpose(np.matmul(np.linalg.inv(H), b))
+
+        self.state_matrix +=  change
 
     def solve(self):
         self.initialize_state_randomly()
         iteration = 1
         while True:
+            iteration += 1
             self.compute_predicted_observation()
             self.compute_error()
             self.improvise_state()
             print (f"Sum of squared error in iteration {iteration} is {self.sum_of_squared_error}")
-            input()
-            # self.add_to_visualizer(domain_points, self.predicted, color='red')
-            # self.add_to_visualizer(domain_points, observations, color='blue')
-            # self.visualize()
+            self.add_to_visualizer(domain_points, self.predicted, color='red')
+            self.add_to_visualizer(domain_points, observations, color='blue')
+            self.visualize()
 
 
 
 if __name__ == '__main__':
     observation_func = LinearFunction()
-    domain_points, observations = observation_func.get_sample_data([1,4], 1000, noise_sigma=[2])
+    domain_points, observations = observation_func.get_sample_data([1,-4], 1000, noise_sigma=[2])
     solver = LeastSquareSolver(observation_func, domain_points, observations)
 
     # observation_func = ProjectionFunction()
