@@ -21,7 +21,7 @@ class LeastSquareSolver:
         self.squared_error = [999999999]*len(observations)
         self.sum_of_squared_error = 999999999
         self.previous_sum_of_squared_error = 999999999
-        self.iterations_before_visualization = 1
+        self.iterations_before_visualization = 15
 
     def initialize_state_randomly(self):
         self.state_matrix = self.observation_func.initialize_state_matrix()
@@ -32,7 +32,7 @@ class LeastSquareSolver:
     def compute_error(self):
         self.e_i = self.observations - self.predicted
         self.squared_error = self.e_i * self.e_i # self.squared_error = np.array(list(map(lambda err: np.dot(np.transpose(err), err), self.e_i)))
-        self.sum_of_squared_error = np.sum(self.squared_error)
+        self.sum_of_squared_error = np.sum(self.squared_error)/self.domain_points.shape[0]
         return self.sum_of_squared_error
     
     def add_to_visualizer(self,x,y,color='green'):
@@ -47,7 +47,7 @@ class LeastSquareSolver:
         # SGD or Gauss Netwon or Levenberg–Marquardt
         c_i = self.squared_error
         j_i = self.observation_func.jacobian_of_error_func(self.domain_points, self.observations, self.state_matrix)
-        b_i = np.matmul(self.e_i, j_i)
+        b_i = np.matmul(np.moveaxis(self.e_i, 1, 2), j_i)
         h_i = np.array(list(map(lambda j: np.dot(np.transpose(j), j), j_i)))
 
         c = np.sum(c_i,axis=0)
@@ -60,16 +60,21 @@ class LeastSquareSolver:
 
     def solve(self):
         self.initialize_state_randomly()
-        print ("The state_matrix is initialed as:", np.round(self.state_matrix,decimals=2))
+        print (f'The state_matrix is initialed as:\n{np.round(self.state_matrix,decimals=2)}')
 
-        iterations = 0
+        iteration = 0
+        iterations = []
+        losses = []
         while True:
-            iterations += 1
+            iteration += 1
             self.compute_predicted_observation()
             self.compute_error()
             self.improvise_state()
-            if iterations%self.iterations_before_visualization == 0:
-                print (f'Iteration = {iterations}, state_matrix = {self.state_matrix}, L2 error= {self.sum_of_squared_error}')
-                self.add_to_visualizer(self.domain_points, self.observations, color='green')
-                self.add_to_visualizer(self.domain_points, self.predicted, color='red')
+            iterations.append(iteration)
+            losses.append(self.sum_of_squared_error)
+            print (f'Iteration: {iteration}\nL2 error= {np.round(self.sum_of_squared_error,2)}\nstate_matrix = \n {np.round(self.state_matrix,2)} \n\n')
+            if iteration%self.iterations_before_visualization == 0:
+                # self.add_to_visualizer(self.domain_points, self.observations, color='green')
+                # self.add_to_visualizer(self.domain_points, self.predicted, color='red')
+                self.add_to_visualizer(iterations, losses)
                 self.visualize()
