@@ -1,6 +1,6 @@
 import numpy as np
 
-from models import ExpFunction, LinearFunction, SineFunction, QuadraticFunction, ProjectionFunction
+from models import ExpFunction, LinearFunction, SineFunction, QuadraticFunction, ProjectionFunction, SphericalProjection
 from optimizer import LeastSquareSolver
 
 if __name__ == '__main__':
@@ -15,9 +15,8 @@ if __name__ == '__main__':
 
     # observation_func = ExpFunction()
     # domain_points, observations = observation_func.get_sample_data(np.array([[-2, 2]]), N=1000, noise_sigma=[1])
-
-    observation_func = ProjectionFunction()
-    domain_points, observations = observation_func.get_sample_data(20*np.ones((2,3)), N=1000, noise_sigma=[0, 0])
-
+    
+    observation_func = SphericalProjection()
+    domain_points, observations = observation_func.get_sample_data(20*np.ones((2,3)), N=100, noise_sigma=[0, 0])
     solver = LeastSquareSolver(observation_func, domain_points, observations)
     solver.solve()

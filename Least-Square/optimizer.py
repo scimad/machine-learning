@@ -21,7 +21,7 @@ class LeastSquareSolver:
         self.squared_error = [999999999]*len(observations)
         self.sum_of_squared_error = 999999999
         self.previous_sum_of_squared_error = 999999999
-        self.iterations_before_visualization = 15
+        self.iterations_before_visualization = 150
 
     def initialize_state_randomly(self):
         self.state_matrix = self.observation_func.initialize_state_matrix()
@@ -30,7 +30,7 @@ class LeastSquareSolver:
         self.predicted = self.observation_func.func(self.domain_points, self.state_matrix)
 
     def compute_error(self):
-        self.e_i = self.observations - self.predicted
+        self.e_i = np.reshape(self.observations, np.shape(self.predicted)) - self.predicted
         self.squared_error = self.e_i * self.e_i # self.squared_error = np.array(list(map(lambda err: np.dot(np.transpose(err), err), self.e_i)))
         self.sum_of_squared_error = np.sum(self.squared_error)/self.domain_points.shape[0]
         return self.sum_of_squared_error
@@ -39,8 +39,8 @@ class LeastSquareSolver:
         plt.scatter(x, y, s=0.5, color=color)
     
     def visualize(self):
-        plt.xlabel('x')
-        plt.ylabel('y')
+        plt.xlabel('iterations')
+        plt.ylabel('loss')
         plt.show()
     
     def improvise_state(self):
@@ -78,3 +78,12 @@ class LeastSquareSolver:
                 # self.add_to_visualizer(self.domain_points, self.predicted, color='red')
                 self.add_to_visualizer(iterations, losses)
                 self.visualize()
+
+                X, Y  = self.observation_func.sample_data[0], self.observation_func.sample_data[1]
+                F_V = self.observation_func.feature_vec
+                cx, cy, theta = self.state_matrix
+                alpha = self.observation_func.sample_observations
+                x = cx + 1*np.cos(alpha + theta)
+                y = cy + 1*np.sin(alpha + theta)
+                self.observation_func.visualize(x, y, self.observation_func.feature_vec, show=False)
+                self.observation_func.visualize(X, Y, F_V)

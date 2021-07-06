@@ -1,5 +1,9 @@
+from __future__ import print_function
+from matplotlib import colors
 import numpy as np
 import matplotlib.pyplot as plt
+from numpy.__config__ import show
+from numpy.lib.function_base import angle
 
 class FunctionTemplate:
     def __init__(self, learning_rate=1):
@@ -11,11 +15,16 @@ class FunctionTemplate:
         '''
         pass
 
-    def visualize(self, x, y):
-        plt.scatter(x,y,marker='x',s=1)
+    def visualize(self, x, y,color=['red'],show=True):
+        if len(color) == 1:
+            plt.scatter(x,y,marker='x',s=1, color=color)
+        else:
+            for x_,y_,c in zip(x,y,color):
+                plt.scatter(x_, y_ , marker='o', s=10, color=c)
         plt.xlabel('x (data point)')
         plt.ylabel('y (observations)')
-        plt.show()
+        if show:
+            plt.show()
 
     def get_sample_data(state_matrix, N, noise_sigma):
         pass
@@ -157,7 +166,7 @@ class ExpFunction(FunctionTemplate):
 
 class ProjectionFunction(FunctionTemplate):
     def __init__(self):
-        super().__init__(learning_rate=0.5)
+        super().__init__(learning_rate=0.005)
 
     def func(self, domain_points, state_matrix):
         return np.matmul(state_matrix, domain_points)
@@ -183,4 +192,102 @@ class ProjectionFunction(FunctionTemplate):
     def jacobian_of_error_func(self, domain_points, observations, state_matrix):
         x_i = np.array((domain_points))
         j_i = - np.moveaxis(np.vstack((x_i.transpose(), x_i.transpose())), 2,0)
+        return j_i
+
+
+
+
+
+class SphericalProjection(FunctionTemplate):
+    '''
+    2D simulation:
+
+    The actual 3d position of features on images are shown by X, Y
+
+    (x,y) represents the position of that feature on 360 image.
+
+    The features in two sequences are ordered by correspondence.
+    i.e. x[0],y[0] and X[0]Y[0] both have same (or almost same) features
+
+    The center of (x, y) and theta will vary and that for X, Y will remain constant
+
+    The variation of (x,y) will be by varying the angle theta.
+
+
+    x,y represents domain points and corresponding to every point, there will be a line for each point passing through the center
+
+
+    '''
+    def __init__(self):
+        super().__init__(learning_rate=0.1)
+        self.sample_data = None
+
+    def func(self, domain_points, state_matrix):
+        # compute_predicted_observation
+        cx, cy, theta = np.transpose(state_matrix)
+        alpha = []
+        for y,x in zip(domain_points[1], domain_points[0]):
+            alpha_ = np.arctan2(y-cy, x-cx) + theta            
+            if alpha_ < 0:
+                alpha_ += 2*np.pi
+            alpha.append(alpha_)
+        return np.array(alpha)
+
+    def initialize_state_matrix(self):
+        # return np.random.normal(size=(1,3))
+        # return np.average(self.sample_data[0]), np.average(self.sample_data[1]), 2*np.pi*np.random.rand()
+        return 0.0, 0.0, 0
+
+    def get_sample_data(self, state_matrix=np.ones((2,3)), N=1000, noise_sigma=[1,2]):
+        self.N = N
+        #let feature_vec represent the feature discriptors of keypoints that match
+        # on both the 360 image and on the image dataset
+        feature_vec = np.random.uniform(0, 1, (N,1,3))
+
+        # let alpha represent the angles observed by different feature points in 360 image
+        # alpha = np.random.uniform(0, 2 * np.pi, (N, 1, 1))
+        alpha = np.random.exponential(1, size=(N, 1, 1))
+        alpha = alpha %( 2 * np.pi)
+
+        print (f'Computed sample alpha:\n {alpha}')
+
+        self.x = 1*np.cos(alpha) # + np.random.normal(size=alpha.shape)
+        self.y = 1*np.sin(alpha) # + np.random.normal(size=alpha.shape)
+
+        # These are the parameters we would later want our solver to find
+        # CX, CY = np.random.uniform(-10,10,(2))
+        # THETA = np.random.uniform(0,2*np.pi, (1))
+        # For now I am choosing CX, CY, theta at my own discretion
+        CX, CY = 5*np.ones((2))
+        # THETA = 0.25*2*np.pi*np.ones((1))
+        THETA = 3.1415*np.ones((1))
+
+        # Location of features in 2d space (images (represented by lines) in 2d)
+        noise_in_data = 0.05 #meaning 5% of 2*pi
+        angles_in_real_world = alpha + np.random.uniform(0, noise_in_data*2*np.pi, np.shape(alpha)) + THETA
+        X = CX + np.random.uniform(3, 5, (N, 1, 1)) * np.cos(angles_in_real_world)
+        Y = CY + np.random.uniform(3, 5, (N, 1, 1)) * np.sin(angles_in_real_world)
+        F_V = np.copy(feature_vec)
+
+        self.feature_vec = feature_vec
+
+        self.visualize(self.x, self.y, feature_vec, show=False)
+        self.visualize(X, Y, F_V)
+
+        self.sample_data = np.stack((X, Y))
+        self.sample_observations = alpha
+        return self.sample_data, self.sample_observations
+
+    def jacobian_of_error_func(self, domain_points, observations, state_matrix):
+        x_i, y_i = domain_points[0], domain_points[1]
+        cx, cy, theta = state_matrix
+        yicy = y_i - cy
+        xicy = x_i - cx
+
+        denom = (xicy**2 + yicy**2)
+        j_11 = -yicy/denom
+        j_12 = xicy/denom
+        j_13 = -1*np.ones(np.shape(j_11))
+
+        j_i = np.concatenate((j_11, j_12, j_13), axis=2)
         return j_i
