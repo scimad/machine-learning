@@ -207,7 +207,6 @@ class ProjectionFunction(FunctionTemplate):
 
 
 
-
 class SphericalProjection(FunctionTemplate):
     '''
     2D simulation:
