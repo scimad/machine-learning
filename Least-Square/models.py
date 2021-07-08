@@ -69,6 +69,8 @@ class LinearFunction(FunctionTemplate):
         j_i = np.concatenate((j_11, j_12), axis=2)
         return j_i
 
+
+
 class QuadraticFunction(FunctionTemplate):
     def __init__(self):
         super().__init__(learning_rate=0.5)
@@ -137,6 +139,8 @@ class SineFunction(FunctionTemplate):
         j_i = np.concatenate((j_11, j_12, j_13), axis=2)
         return j_i
 
+
+
 class ExpFunction(FunctionTemplate):
     def __init__(self):
         super().__init__(learning_rate=0.2)
@@ -200,7 +204,6 @@ class ProjectionFunction(FunctionTemplate):
         x_i = np.array((domain_points))
         j_i = - np.moveaxis(np.vstack((x_i.transpose(), x_i.transpose())), 2,0)
         return j_i
-
 
 
 

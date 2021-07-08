@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+
+
 class LeastSquareSolver:
     '''
     Description for class LeastSquareSolver
