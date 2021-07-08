@@ -213,20 +213,27 @@ class SphericalProjection(FunctionTemplate):
 
     The actual 3d position of features on images are shown by X, Y
 
-    (x,y) represents the position of that feature on 360 image.
+    (x,y) represents the position of that feature on 360 image. The
+    corresponding parameter alpha_i represents the angle in 360 image depicted
+    by a circle here.
 
     The features in two sequences are ordered by correspondence.
     i.e. x[0],y[0] and X[0]Y[0] both have same (or almost same) features
 
-    The center of (x, y) and theta will vary and that for X, Y will remain constant
+    The center of (cx, cy) and theta will vary and that for X, Y will remain
+    constant. The variation of (cx,cy) and theta will change the error based
+    on the perpendicular distance from the points in X, Y to the line joining
+    (cx, cy) and (x, y).
 
-    The variation of (x,y) will be by varying the angle theta.
+    the error function computes out to be `d*sin(gamma)`, but for the ease of
+    computation, I have used squared term of `d` or that of whole expression.
 
-
-    x,y represents domain points and corresponding to every point, there will be a line for each point passing through the center
-
-
+    There is a local minima (?) corresponding to a solution that differs to the
+    actual solution by 180 degrees, and hence if the initialization isn't done
+    properly, there's a chance the solution doesn't converge to an expected
+    value of THETA.
     '''
+
     def __init__(self):
         super().__init__(learning_rate=0.1)
         self.sample_data = None
@@ -248,8 +255,6 @@ class SphericalProjection(FunctionTemplate):
         # alpha = np.random.uniform(0, 2 * np.pi, (N, 1, 1))
         alpha = np.random.exponential(1, size=(N, 1, 1))
         alpha = alpha %( 2 * np.pi)
-
-        print (f'Computed sample alpha:\n {alpha}')
 
         self.x = 1*np.cos(alpha) # + np.random.normal(size=alpha.shape)
         self.y = 1*np.sin(alpha) # + np.random.normal(size=alpha.shape)
