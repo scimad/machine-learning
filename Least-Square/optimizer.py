@@ -30,15 +30,13 @@ class LeastSquareSolver:
         self.predicted = self.observation_func.func(self.domain_points, self.state_matrix)
 
     def compute_error(self):
-        self.e_i = np.reshape(self.observations, np.shape(self.predicted)) - self.predicted
+        self.e_i = self.observation_func.err_fn(self.domain_points, self.observations, self.predicted, self.state_matrix)
         self.squared_error = self.e_i * self.e_i # self.squared_error = np.array(list(map(lambda err: np.dot(np.transpose(err), err), self.e_i)))
-        self.sum_of_squared_error = np.sum(self.squared_error)/self.domain_points.shape[0]
+        self.sum_of_squared_error = np.sum(self.squared_error)/self.domain_points.shape[0]   
         return self.sum_of_squared_error
-    
-    def add_to_visualizer(self,x,y,color='green'):
-        plt.scatter(x, y, s=0.5, color=color)
-    
-    def visualize(self):
+
+    def visualize_loss(self):
+        plt.scatter(self.iterations, self.losses, s=0.5, color='green')
         plt.xlabel('iterations')
         plt.ylabel('loss')
         plt.show()
@@ -63,27 +61,16 @@ class LeastSquareSolver:
         print (f'The state_matrix is initialed as:\n{np.round(self.state_matrix,decimals=2)}')
 
         iteration = 0
-        iterations = []
-        losses = []
+        self.iterations = []
+        self.losses = []
         while True:
             iteration += 1
             self.compute_predicted_observation()
             self.compute_error()
             self.improvise_state()
-            iterations.append(iteration)
-            losses.append(self.sum_of_squared_error)
-            print (f'Iteration: {iteration}\nL2 error= {np.round(self.sum_of_squared_error,2)}\nstate_matrix = \n {np.round(self.state_matrix,2)} \n\n')
+            self.iterations.append(iteration)
+            self.losses.append(self.sum_of_squared_error)
+            print (f'Iteration: {iteration}\nL2 error= {np.round(self.sum_of_squared_error,3)}\nstate_matrix = \n {np.round(self.state_matrix,3)} \n\n')
             if iteration%self.iterations_before_visualization == 0:
-                # self.add_to_visualizer(self.domain_points, self.observations, color='green')
-                # self.add_to_visualizer(self.domain_points, self.predicted, color='red')
-                self.add_to_visualizer(iterations, losses)
-                self.visualize()
-
-                X, Y  = self.observation_func.sample_data[0], self.observation_func.sample_data[1]
-                F_V = self.observation_func.feature_vec
-                cx, cy, theta = self.state_matrix
-                alpha = self.observation_func.sample_observations
-                x = cx + 1*np.cos(alpha + theta)
-                y = cy + 1*np.sin(alpha + theta)
-                self.observation_func.visualize(x, y, self.observation_func.feature_vec, show=False)
-                self.observation_func.visualize(X, Y, F_V)
+                self.visualize_loss()
+                self.observation_func.run_visualization(self.domain_points, self.observations, self.predicted, self.state_matrix)

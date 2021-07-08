@@ -17,6 +17,6 @@ if __name__ == '__main__':
     # domain_points, observations = observation_func.get_sample_data(np.array([[-2, 2]]), N=1000, noise_sigma=[1])
     
     observation_func = SphericalProjection()
-    domain_points, observations = observation_func.get_sample_data(20*np.ones((2,3)), N=100, noise_sigma=[0, 0])
+    domain_points, observations = observation_func.get_sample_data([10, 100, 2.5], N=300, noise_sigma=[0, 0])
     solver = LeastSquareSolver(observation_func, domain_points, observations)
     solver.solve()

@@ -1,9 +1,7 @@
-from __future__ import print_function
-from matplotlib import colors
 import numpy as np
 import matplotlib.pyplot as plt
 from numpy.__config__ import show
-from numpy.lib.function_base import angle
+
 
 class FunctionTemplate:
     def __init__(self, learning_rate=1):
@@ -25,6 +23,15 @@ class FunctionTemplate:
         plt.ylabel('y (observations)')
         if show:
             plt.show()
+
+    def err_fn(self, domain_points, observations, predicted, state_matrix):
+        e_i = np.reshape(observations, np.shape(predicted)) - predicted
+        return e_i
+
+    def run_visualization(self, domain_points, observations, predicted, state_matrix):
+        self.visualize(domain_points, observations, color='g', show=False)
+        self.visualize(domain_points, predicted, color='r')
+
 
     def get_sample_data(state_matrix, N, noise_sigma):
         pass
@@ -223,20 +230,11 @@ class SphericalProjection(FunctionTemplate):
         self.sample_data = None
 
     def func(self, domain_points, state_matrix):
-        # compute_predicted_observation
-        cx, cy, theta = np.transpose(state_matrix)
-        alpha = []
-        for y,x in zip(domain_points[1], domain_points[0]):
-            alpha_ = np.arctan2(y-cy, x-cx) + theta            
-            if alpha_ < 0:
-                alpha_ += 2*np.pi
-            alpha.append(alpha_)
-        return np.array(alpha)
+        pass
 
     def initialize_state_matrix(self):
-        # return np.random.normal(size=(1,3))
         # return np.average(self.sample_data[0]), np.average(self.sample_data[1]), 2*np.pi*np.random.rand()
-        return 0.0, 0.0, 0
+        return np.average(self.sample_data[0]), np.average(self.sample_data[1]), 2
 
     def get_sample_data(self, state_matrix=np.ones((2,3)), N=1000, noise_sigma=[1,2]):
         self.N = N
@@ -255,18 +253,13 @@ class SphericalProjection(FunctionTemplate):
         self.y = 1*np.sin(alpha) # + np.random.normal(size=alpha.shape)
 
         # These are the parameters we would later want our solver to find
-        # CX, CY = np.random.uniform(-10,10,(2))
-        # THETA = np.random.uniform(0,2*np.pi, (1))
-        # For now I am choosing CX, CY, theta at my own discretion
-        CX, CY = 5*np.ones((2))
-        # THETA = 0.25*2*np.pi*np.ones((1))
-        THETA = 3.1415*np.ones((1))
+        CX, CY, THETA = state_matrix
 
         # Location of features in 2d space (images (represented by lines) in 2d)
-        noise_in_data = 0.05 #meaning 5% of 2*pi
-        angles_in_real_world = alpha + np.random.uniform(0, noise_in_data*2*np.pi, np.shape(alpha)) + THETA
-        X = CX + np.random.uniform(3, 5, (N, 1, 1)) * np.cos(angles_in_real_world)
-        Y = CY + np.random.uniform(3, 5, (N, 1, 1)) * np.sin(angles_in_real_world)
+        noise_in_data = np.random.uniform(0, 0.03*2*np.pi, np.shape(alpha)) #meaning % of 2*pi
+        angles_in_real_world = alpha +  THETA + noise_in_data
+        X = CX + np.random.uniform(3, 4, (N, 1, 1)) * np.cos(angles_in_real_world)
+        Y = CY + np.random.uniform(3, 4, (N, 1, 1)) * np.sin(angles_in_real_world)
         F_V = np.copy(feature_vec)
 
         self.feature_vec = feature_vec
@@ -278,16 +271,63 @@ class SphericalProjection(FunctionTemplate):
         self.sample_observations = alpha
         return self.sample_data, self.sample_observations
 
-    def jacobian_of_error_func(self, domain_points, observations, state_matrix):
+    def err_fn(self, domain_points, observations, predicted, state_matrix):
         x_i, y_i = domain_points[0], domain_points[1]
+        alpha_i = observations
         cx, cy, theta = state_matrix
         yicy = y_i - cy
-        xicy = x_i - cx
+        xicx = x_i - cx
+        d2_i = yicy**2 + xicx**2
+        beta_i = []
+        for y, x in zip(yicy, xicx):
+            beta_i.append(np.arctan2(y,x))
+        beta_i = np.array(beta_i)
+        gamma_i = (beta_i - alpha_i - theta)
+        e_i = d2_i*np.sin(gamma_i) #*np.sin(gamma_i)
+        return e_i
 
-        denom = (xicy**2 + yicy**2)
-        j_11 = -yicy/denom
-        j_12 = xicy/denom
-        j_13 = -1*np.ones(np.shape(j_11))
+    def jacobian_of_error_func(self, domain_points, observations, state_matrix):
+        x_i, y_i = domain_points[0], domain_points[1]
+        alpha_i = observations
+        cx, cy, theta = state_matrix
+        yicy = y_i - cy
+        xicx = x_i - cx
+
+        beta_i = []
+        for y, x in zip(yicy, xicx):
+            beta_i.append(np.arctan2(y,x))
+        beta_i = np.array(beta_i)
+
+        gamma_i = beta_i - alpha_i - theta
+        d2 = (xicx**2 + yicy**2)
+
+        st = np.sin(gamma_i)
+        ct = np.cos(gamma_i)
+
+        x_st = xicx*st
+        y_ct = yicy*ct
+        x_ct = xicx*ct
+        y_st = yicy*st
+
+        # When the error function is d2_i*np.sin(gamma_i)*np.sin(gamma_i)
+        j_11 = -2*x_st + y_ct
+        j_12 = -2*y_st - x_ct
+        j_13 = - d2 * ct
+
+        # When the error function is d2_i*np.sin(gamma_i)*np.sin(gamma_i)
+        # j_11 = 2*st*(-x_st + y_ct)
+        # j_12 = -2*st*(x_ct + y_st)
+        # j_13 = - 2* d2 * st * ct
 
         j_i = np.concatenate((j_11, j_12, j_13), axis=2)
         return j_i
+
+    def  run_visualization(self, domain_points, observations, predicted, state_matrix):
+        X, Y  = self.sample_data[0], self.sample_data[1]
+        F_V = self.feature_vec
+        cx, cy, theta = state_matrix
+        alpha = self.sample_observations
+        x = cx + 1*np.cos(alpha + theta)
+        y = cy + 1*np.sin(alpha + theta)
+        self.visualize(x, y, self.feature_vec, show=False)
+        self.visualize(X, Y, F_V)
