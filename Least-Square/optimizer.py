@@ -23,7 +23,7 @@ class LeastSquareSolver:
         self.squared_error = [999999999]*len(observations)
         self.sum_of_squared_error = 999999999
         self.previous_sum_of_squared_error = 999999999
-        self.iterations_before_visualization = 150
+        self.iterations_before_visualization = 50
 
     def initialize_state_randomly(self):
         self.state_matrix = self.observation_func.initialize_state_matrix()
